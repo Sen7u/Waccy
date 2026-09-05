@@ -1,0 +1,69 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Inkboard.App.ViewModels"
+        x:Class="Inkboard.App.Views.PopupWindow"
+        x:DataType="vm:PopupViewModel"
+        Title="Inkboard"
+        Width="440" Height="520"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Brush.Surface}"
+        WindowDecorations="All"
+        Topmost="True">
+
+  <DockPanel Margin="16">
+    <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="0,0,0,12">
+      <TextBlock Text="Inkboard"
+                 FontSize="20"
+                 FontWeight="SemiBold"
+                 Foreground="{DynamicResource Brush.Accent}" />
+      <TextBox PlaceholderText="搜索历史…"
+               Text="{Binding SearchText}"
+               MinHeight="36" />
+    </StackPanel>
+
+    <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+      <Button Content="清空未置顶"
+              Command="{Binding ClearCommand}"
+              HorizontalAlignment="Right"
+              Padding="12,6" />
+      <TextBlock Text="{Binding StatusText}"
+                 Foreground="{DynamicResource Brush.TextMuted}"
+                 FontSize="12"
+                 VerticalAlignment="Center" />
+    </DockPanel>
+
+    <ListBox ItemsSource="{Binding Items}"
+             SelectedItem="{Binding SelectedItem}"
+             Background="Transparent"
+             DoubleTapped="OnItemDoubleTapped">
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="vm:HistoryItemRow">
+          <Grid ColumnDefinitions="*,Auto" Margin="2,6">
+            <StackPanel Grid.Column="0">
+              <TextBlock Text="{Binding Preview}"
+                         TextTrimming="CharacterEllipsis"
+                         Foreground="{DynamicResource Brush.Text}"
+                         FontSize="14" />
+              <TextBlock Text="{Binding Meta}"
+                         Foreground="{DynamicResource Brush.TextMuted}"
+                         FontSize="11"
+                         Margin="0,2,0,0" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+              <Button Content="📌"
+                      Command="{Binding $parent[Window].((vm:PopupViewModel)DataContext).TogglePinCommand}"
+                      CommandParameter="{Binding}"
+                      Padding="8,4"
+                      ToolTip.Tip="置顶" />
+              <Button Content="删除"
+                      Command="{Binding $parent[Window].((vm:PopupViewModel)DataContext).DeleteCommand}"
+                      CommandParameter="{Binding}"
+                      Padding="8,4" />
+            </StackPanel>
+          </Grid>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+  </DockPanel>
+</Window>

@@ -9,17 +9,13 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Inkboard.App;
 
 /// <summary>
-/// Avalonia 应用入口。注意：不能写裸 Application，会与 Inkboard.Application 程序集命名空间冲突。
+/// Avalonia 应用入口。使用 Avalonia.Application 全名，避免与 Inkboard.Application 程序集冲突。
 /// </summary>
 public partial class App : Avalonia.Application
 {
-    /// <summary>进程级服务提供者，窗口关闭时释放。</summary>
     public static IServiceProvider Services { get; private set; } = null!;
 
-    public override void Initialize()
-    {
-        AvaloniaXamlLoader.Load(this);
-    }
+    public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
     {
@@ -27,15 +23,15 @@ public partial class App : Avalonia.Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow
+            desktop.MainWindow = new PopupWindow
             {
-                DataContext = Services.GetRequiredService<MainViewModel>(),
+                DataContext = Services.GetRequiredService<PopupViewModel>(),
             };
 
             desktop.ShutdownRequested += (_, _) =>
             {
-                if (Services is IDisposable disposable)
-                    disposable.Dispose();
+                if (Services is IDisposable d)
+                    d.Dispose();
             };
         }
 

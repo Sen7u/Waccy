@@ -11,6 +11,7 @@ public static class ApplicationServiceCollectionExtensions
     public static IServiceCollection AddInkboardApplication(this IServiceCollection services)
     {
         services.AddSingleton<HistoryService>();
+        services.AddSingleton<ClipboardCaptureService>();
         return services;
     }
 }

@@ -21,6 +21,7 @@ public static class AppComposition
         AddPlatform(services);
 
         services.AddTransient<ViewModels.MainViewModel>();
+        services.AddTransient<ViewModels.PopupViewModel>();
 
         return services.BuildServiceProvider();
     }
