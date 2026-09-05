@@ -1,0 +1,49 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa]rtifacts/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+packages/
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+## IDE
+.vs/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*~
+
+## OS
+.DS_Store
+Thumbs.db
+
+## 本地参考仓库（通过 make reference 拉取，不入库）
+reference/
+
+## 测试 / 覆盖率
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+## Avalonia / 本地数据
+*.db
+*.db-shm
+*.db-wal
+.avalonia/
+agent-tools/

@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+    <AvaloniaResource Include="Themes\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Inkboard.Application\Inkboard.Application.csproj" />
+    <ProjectReference Include="..\Inkboard.Domain\Inkboard.Domain.csproj" />
+    <ProjectReference Include="..\Inkboard.Infrastructure.Abstractions\Inkboard.Infrastructure.Abstractions.csproj" />
+    <ProjectReference Include="..\Inkboard.Infrastructure.Persistence\Inkboard.Infrastructure.Persistence.csproj" />
+    <ProjectReference Include="..\Inkboard.Platform.Windows\Inkboard.Platform.Windows.csproj" />
+    <ProjectReference Include="..\Inkboard.Platform.Linux\Inkboard.Platform.Linux.csproj" />
+  </ItemGroup>
+</Project>

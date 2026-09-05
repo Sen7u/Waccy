@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Inkboard.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="320"
+        x:Class="Inkboard.App.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Width="480" Height="320"
+        Title="Inkboard"
+        Background="{DynamicResource Brush.Surface}">
+
+    <Border Padding="28">
+        <StackPanel Spacing="12" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <TextBlock Text="Inkboard"
+                       FontSize="28"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource Brush.Accent}"
+                       HorizontalAlignment="Center" />
+            <TextBlock Text="{Binding StatusText}"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"
+                       Foreground="{DynamicResource Brush.Text}" />
+            <TextBlock Text="{Binding HistoryServiceName, StringFormat=Application: {0}}"
+                       Opacity="0.7"
+                       FontSize="12"
+                       Foreground="{DynamicResource Brush.TextMuted}"
+                       HorizontalAlignment="Center" />
+        </StackPanel>
+    </Border>
+</Window>
