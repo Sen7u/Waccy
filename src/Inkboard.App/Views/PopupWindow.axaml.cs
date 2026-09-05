@@ -1,14 +1,12 @@
 using System;
 using System.Threading.Tasks;
 using Avalonia;
-using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
-using Avalonia.Styling;
 using Avalonia.Threading;
 using Inkboard.App.Services;
 using Inkboard.App.ViewModels;
@@ -121,33 +119,27 @@ public partial class PopupWindow : Window
         var ms = 150.0;
         if (container.TryGetResource("Motion.DeleteMs", out var v) && v is double d)
             ms = d;
+        else if (Avalonia.Application.Current?.TryGetResource("Motion.DeleteMs", out v) == true &&
+                 v is double d2)
+            ms = d2;
 
         container.RenderTransformOrigin = new RelativePoint(0, 0.5, RelativeUnit.Relative);
         var tx = new TranslateTransform();
         container.RenderTransform = tx;
 
-        var duration = TimeSpan.FromMilliseconds(ms);
         var ease = new CubicEaseIn();
-        var opacity = Build(duration, ease, Visual.OpacityProperty, 1, 0);
-        var slide = Build(duration, ease, TranslateTransform.XProperty, 0, 24);
+        var duration = TimeSpan.FromMilliseconds(ms);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
 
-        await Task.WhenAll(opacity.RunAsync(container), slide.RunAsync(tx)).ConfigureAwait(true);
-    }
-
-    private static Animation Build(
-        TimeSpan duration,
-        Easing easing,
-        AvaloniaProperty property,
-        double from,
-        double to) => new()
-    {
-        Duration = duration,
-        Easing = easing,
-        FillMode = FillMode.Forward,
-        Children =
+        while (sw.Elapsed < duration)
         {
-            new KeyFrame { Cue = new Cue(0), Setters = { new Setter(property, from) } },
-            new KeyFrame { Cue = new Cue(1), Setters = { new Setter(property, to) } }
+            var t = ease.Ease(sw.Elapsed.TotalMilliseconds / duration.TotalMilliseconds);
+            container.Opacity = 1 - t;
+            tx.X = 24 * t;
+            await Task.Delay(16).ConfigureAwait(true);
         }
-    };
+
+        container.Opacity = 0;
+        tx.X = 24;
+    }
 }

@@ -1,17 +1,17 @@
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Avalonia;
-using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Media;
-using Avalonia.Styling;
 using Avalonia.Threading;
 
 namespace Inkboard.App.Services;
 
 /// <summary>
 /// 弹出层宿主：集中处理显示/隐藏与进出场动效，避免 Window 代码膨胀。
+/// Avalonia 12 不能对 Transform 直接 Animation.RunAsync，故用插值驱动。
 /// </summary>
 public sealed class PopupHost
 {
@@ -87,8 +87,8 @@ public sealed class PopupHost
         double fromScale,
         double toScale)
     {
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var ms = ReadMs(window, "Motion.PopupMs", 200);
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         Dispatcher.UIThread.Post(async () =>
         {
@@ -98,22 +98,24 @@ public sealed class PopupHost
                             ?? new ScaleTransform(fromScale, fromScale);
                 window.RenderTransformOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative);
                 window.RenderTransform = scale;
-                window.Opacity = fromOpacity;
-                scale.ScaleX = fromScale;
-                scale.ScaleY = fromScale;
 
-                var duration = TimeSpan.FromMilliseconds(ms);
                 var ease = new CubicEaseOut();
+                var duration = TimeSpan.FromMilliseconds(ms);
+                var sw = Stopwatch.StartNew();
 
-                var opacity = Build(duration, ease, Visual.OpacityProperty, fromOpacity, toOpacity);
-                var sx = Build(duration, ease, ScaleTransform.ScaleXProperty, fromScale, toScale);
-                var sy = Build(duration, ease, ScaleTransform.ScaleYProperty, fromScale, toScale);
+                while (sw.Elapsed < duration)
+                {
+                    var t = ease.Ease(sw.Elapsed.TotalMilliseconds / duration.TotalMilliseconds);
+                    window.Opacity = Lerp(fromOpacity, toOpacity, t);
+                    var s = Lerp(fromScale, toScale, t);
+                    scale.ScaleX = s;
+                    scale.ScaleY = s;
+                    await Task.Delay(16).ConfigureAwait(true);
+                }
 
-                await Task.WhenAll(
-                    opacity.RunAsync(window),
-                    sx.RunAsync(scale),
-                    sy.RunAsync(scale)).ConfigureAwait(true);
-
+                window.Opacity = toOpacity;
+                scale.ScaleX = toScale;
+                scale.ScaleY = toScale;
                 tcs.TrySetResult();
             }
             catch (Exception ex)
@@ -125,22 +127,7 @@ public sealed class PopupHost
         return tcs.Task;
     }
 
-    private static Animation Build(
-        TimeSpan duration,
-        Easing easing,
-        AvaloniaProperty property,
-        double from,
-        double to) => new()
-    {
-        Duration = duration,
-        Easing = easing,
-        FillMode = FillMode.Forward,
-        Children =
-        {
-            new KeyFrame { Cue = new Cue(0), Setters = { new Setter(property, from) } },
-            new KeyFrame { Cue = new Cue(1), Setters = { new Setter(property, to) } }
-        }
-    };
+    private static double Lerp(double a, double b, double t) => a + (b - a) * t;
 
     private static double ReadMs(StyledElement el, string key, double fallback)
     {
