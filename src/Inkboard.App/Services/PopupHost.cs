@@ -17,17 +17,19 @@ public sealed class PopupHost
 {
     private Window? _window;
     private bool _busy;
+    private bool _open;
 
     public void Attach(Window window) => _window = window;
 
-    public bool IsVisible => _window?.IsVisible == true;
+    /// <summary>业务上的「打开」状态；比 IsVisible 更可靠（避免外部 map 出透明窗）。</summary>
+    public bool IsOpen => _open && _window?.IsVisible == true;
 
     public async Task ShowAsync()
     {
         if (_window is null || _busy)
             return;
 
-        if (_window.IsVisible)
+        if (IsOpen && _window.Opacity >= 0.99)
         {
             _window.Activate();
             return;
@@ -37,9 +39,12 @@ public sealed class PopupHost
         try
         {
             PrepareEnter(_window);
-            _window.Show();
+            if (!_window.IsVisible)
+                _window.Show();
+            _window.WindowState = WindowState.Normal;
             _window.Activate();
             await AnimateAsync(_window, 0, 1, 0.96, 1).ConfigureAwait(true);
+            _open = true;
         }
         finally
         {
@@ -49,7 +54,7 @@ public sealed class PopupHost
 
     public async Task HideAsync()
     {
-        if (_window is null || !_window.IsVisible || _busy)
+        if (_window is null || !_open || _busy)
             return;
 
         _busy = true;
@@ -58,6 +63,7 @@ public sealed class PopupHost
             await AnimateAsync(_window, 1, 0, 1, 0.96).ConfigureAwait(true);
             _window.Hide();
             Reset(_window);
+            _open = false;
         }
         finally
         {
@@ -65,7 +71,7 @@ public sealed class PopupHost
         }
     }
 
-    public Task ToggleAsync() => IsVisible ? HideAsync() : ShowAsync();
+    public Task ToggleAsync() => IsOpen ? HideAsync() : ShowAsync();
 
     private static void PrepareEnter(Window w)
     {
