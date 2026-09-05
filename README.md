@@ -9,13 +9,16 @@
 需要 [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)。Linux 上剪贴板监听还需安装 `xsel`（`sudo apt install xsel`）。
 
 ```bash
-make restore   # 还原依赖
-make build     # 编译
-make test      # 单测
-make run       # 启动 UI
-make check     # restore + build + test
-make reference # 拉取 reference/Maccy 作只读对照
+make restore      # 还原依赖
+make build        # 编译
+make test         # 单测
+make run          # 启动 UI
+make check        # restore + build + test
+make publish-win  # 交叉编译 Windows x64 自包含 zip → dist/
+make reference    # 拉取 reference/Maccy 作只读对照
 ```
+
+Windows 包：解压后运行 `Inkboard.App.exe`（自包含，无需另装 .NET）。默认热键 `Ctrl+Shift+V`。
 
 ## 解决方案结构
 

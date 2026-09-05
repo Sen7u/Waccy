@@ -47,3 +47,4 @@ coverage/
 *.db-wal
 .avalonia/
 agent-tools/
+dist/

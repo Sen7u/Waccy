@@ -11,7 +11,7 @@ CONFIGURATION ?= Debug
 REFERENCE_DIR := reference/Maccy
 REFERENCE_URL := https://github.com/p0deje/Maccy.git
 
-.PHONY: help restore build test run clean watch coverage reference format check scaffold-verify
+.PHONY: help restore build test run clean watch coverage reference format check scaffold-verify publish-win
 
 help: ## 显示可用命令
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
