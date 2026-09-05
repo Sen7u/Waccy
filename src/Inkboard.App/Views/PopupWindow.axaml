@@ -8,7 +8,6 @@
         CanResize="False"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource Brush.Surface}"
-        WindowDecorations="All"
         Topmost="True">
 
   <DockPanel Margin="16">
