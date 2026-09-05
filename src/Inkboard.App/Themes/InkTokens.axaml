@@ -1,22 +1,49 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <!-- 墨青工具感：色板与尺寸令牌。功能 UI 接入前先定视觉常量。 -->
+  <!-- 墨青令牌：与 PopupWindow / InkControls 一一对应。 -->
 
-  <Color x:Key="InkTeal">#0F766E</Color>
-  <Color x:Key="InkTealSoft">#14B8A6</Color>
-  <Color x:Key="InkSurface">#F4F7F6</Color>
-  <Color x:Key="InkSurfaceDark">#0B1211</Color>
-  <Color x:Key="InkText">#E8F1EF</Color>
-  <Color x:Key="InkTextMuted">#9BB0AC</Color>
+  <Color x:Key="C.Teal">#0F766E</Color>
+  <Color x:Key="C.TealSoft">#2DD4BF</Color>
+  <Color x:Key="C.TealDim">#134E4A</Color>
+  <Color x:Key="C.Surface">#0B1211</Color>
+  <Color x:Key="C.Surface1">#121C1A</Color>
+  <Color x:Key="C.Hover">#182422</Color>
+  <Color x:Key="C.Selected">#1A2E2B</Color>
+  <Color x:Key="C.Border">#243330</Color>
+  <Color x:Key="C.Text">#E8F1EF</Color>
+  <Color x:Key="C.Muted">#8AA19C</Color>
+  <Color x:Key="C.Danger">#F87171</Color>
 
-  <SolidColorBrush x:Key="Brush.Accent" Color="{StaticResource InkTeal}" />
-  <SolidColorBrush x:Key="Brush.AccentSoft" Color="{StaticResource InkTealSoft}" />
-  <SolidColorBrush x:Key="Brush.Surface" Color="{StaticResource InkSurfaceDark}" />
-  <SolidColorBrush x:Key="Brush.Text" Color="{StaticResource InkText}" />
-  <SolidColorBrush x:Key="Brush.TextMuted" Color="{StaticResource InkTextMuted}" />
+  <SolidColorBrush x:Key="Brush.Accent" Color="{StaticResource C.Teal}" />
+  <SolidColorBrush x:Key="Brush.AccentSoft" Color="{StaticResource C.TealSoft}" />
+  <SolidColorBrush x:Key="Brush.AccentDim" Color="{StaticResource C.TealDim}" />
+  <SolidColorBrush x:Key="Brush.Surface" Color="{StaticResource C.Surface}" />
+  <SolidColorBrush x:Key="Brush.SurfaceElevated" Color="{StaticResource C.Surface1}" />
+  <SolidColorBrush x:Key="Brush.SurfaceHover" Color="{StaticResource C.Hover}" />
+  <SolidColorBrush x:Key="Brush.SurfaceSelected" Color="{StaticResource C.Selected}" />
+  <SolidColorBrush x:Key="Brush.Border" Color="{StaticResource C.Border}" />
+  <SolidColorBrush x:Key="Brush.Text" Color="{StaticResource C.Text}" />
+  <SolidColorBrush x:Key="Brush.TextMuted" Color="{StaticResource C.Muted}" />
+  <SolidColorBrush x:Key="Brush.Danger" Color="{StaticResource C.Danger}" />
 
-  <x:Double x:Key="Radius.Window">12</x:Double>
-  <x:Double x:Key="Radius.Row">8</x:Double>
+  <LinearGradientBrush x:Key="Brush.SurfaceGradient" StartPoint="0%,0%" EndPoint="0%,100%">
+    <GradientStop Color="#0E1A18" Offset="0" />
+    <GradientStop Color="#0B1211" Offset="0.55" />
+    <GradientStop Color="#0A1413" Offset="1" />
+  </LinearGradientBrush>
+
+  <CornerRadius x:Key="Radius.Window">14</CornerRadius>
+  <CornerRadius x:Key="Radius.Row">10</CornerRadius>
+  <CornerRadius x:Key="Radius.Control">8</CornerRadius>
+
+  <Thickness x:Key="Pad.Window">16</Thickness>
+  <x:Double x:Key="Gap.Md">12</x:Double>
+
+  <x:Double x:Key="Font.Title">20</x:Double>
+  <x:Double x:Key="Font.Body">14</x:Double>
+  <x:Double x:Key="Font.Meta">11</x:Double>
+
   <x:Double x:Key="Motion.PopupMs">200</x:Double>
   <x:Double x:Key="Motion.SelectionMs">100</x:Double>
+  <x:Double x:Key="Motion.DeleteMs">150</x:Double>
 </ResourceDictionary>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -12,7 +13,8 @@ using Inkboard.Infrastructure.Abstractions.Clipboard;
 namespace Inkboard.App.ViewModels;
 
 /// <summary>
-/// 弹出层：搜索 / 列表 / 复制 / 置顶 / 删除。
+/// 弹出层状态：搜索 / 列表 / 激活写回 / 置顶 / 删除。
+/// ViewModel 保持薄，规则仍在 Application。
 /// </summary>
 public partial class PopupViewModel : ViewModelBase
 {
@@ -33,6 +35,9 @@ public partial class PopupViewModel : ViewModelBase
     }
 
     public ObservableCollection<HistoryItemRow> Items { get; } = new();
+
+    public bool HasItems => Items.Count > 0;
+    public bool IsEmpty => Items.Count == 0;
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -56,11 +61,20 @@ public partial class PopupViewModel : ViewModelBase
         var query = string.IsNullOrWhiteSpace(SearchText) ? null : SearchText;
         var list = await _history.GetVisibleAsync(query).ConfigureAwait(true);
 
+        // 尽量保留选中项，避免刷新后键盘焦点丢失
+        var selectedId = SelectedItem?.Id;
         Items.Clear();
         foreach (var item in list)
             Items.Add(HistoryItemRow.From(item));
 
-        StatusText = Items.Count == 0
+        SelectedItem = selectedId is Guid id
+            ? Items.FirstOrDefault(i => i.Id == id) ?? Items.FirstOrDefault()
+            : Items.FirstOrDefault();
+
+        OnPropertyChanged(nameof(HasItems));
+        OnPropertyChanged(nameof(IsEmpty));
+
+        StatusText = IsEmpty
             ? "还没有历史 — 复制点什么吧"
             : $"{Items.Count} 条记录";
     }
@@ -81,6 +95,7 @@ public partial class PopupViewModel : ViewModelBase
     {
         if (parameter is not HistoryItemRow row)
             return;
+
         await _history.DeleteAsync(row.Id).ConfigureAwait(true);
         await RefreshAsync().ConfigureAwait(true);
     }
@@ -90,6 +105,7 @@ public partial class PopupViewModel : ViewModelBase
     {
         if (parameter is not HistoryItemRow row)
             return;
+
         await _history.TogglePinAsync(row.Id).ConfigureAwait(true);
         await RefreshAsync().ConfigureAwait(true);
     }
@@ -102,12 +118,15 @@ public partial class PopupViewModel : ViewModelBase
     }
 }
 
+/// <summary>列表行投影：只保留展示所需字段。</summary>
 public sealed class HistoryItemRow
 {
     public Guid Id { get; init; }
     public string Preview { get; init; } = string.Empty;
     public string Meta { get; init; } = string.Empty;
     public bool IsPinned { get; init; }
+    /// <summary>置顶星透明度：已置顶实心，未置顶淡显可点。</summary>
+    public double PinOpacity => IsPinned ? 1.0 : 0.35;
     public byte[] Payload { get; init; } = Array.Empty<byte>();
     public DateTimeOffset CopiedAt { get; init; }
 
