@@ -15,7 +15,8 @@ make check         # restore + build + test
 make reference     # 拉取 reference/Maccy（只读对照）
 ```
 
-需要本机安装 [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)。
+需要本机安装 [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)。  
+Linux 调试剪贴板还需 `xsel`（TextCopy 依赖；`sudo apt install xsel`）。
 
 ## 目录结构
 

@@ -6,7 +6,7 @@
 
 ## 快速开始
 
-需要 [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)。
+需要 [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)。Linux 上剪贴板监听还需安装 `xsel`（`sudo apt install xsel`）。
 
 ```bash
 make restore   # 还原依赖
