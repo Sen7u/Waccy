@@ -42,6 +42,17 @@
                  Classes="ink-search"
                  PlaceholderText="搜索历史…"
                  Text="{Binding SearchText}" />
+        <!-- 暂停态一眼可见：仅托盘勾选时用户容易以为「复制没反应」 -->
+        <Border IsVisible="{Binding IsPaused}"
+                Background="{DynamicResource Brush.SurfaceElevated}"
+                BorderBrush="{DynamicResource Brush.Border}"
+                BorderThickness="1"
+                CornerRadius="{DynamicResource Radius.Control}"
+                Padding="10,8">
+          <TextBlock Text="捕获已暂停 — 可在托盘恢复"
+                     FontSize="{DynamicResource Font.Meta}"
+                     Foreground="{DynamicResource Brush.AccentSoft}" />
+        </Border>
       </StackPanel>
 
       <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
@@ -92,7 +103,7 @@
                Tapped="OnItemTapped">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="vm:HistoryItemRow">
-            <Grid ColumnDefinitions="Auto,*,Auto" MinHeight="40">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto" MinHeight="40">
               <Border Grid.Column="0"
                       Width="3"
                       Margin="0,2,8,2"
@@ -100,7 +111,18 @@
                       Background="{DynamicResource Brush.Accent}"
                       IsVisible="{Binding $parent[ListBoxItem].IsSelected}" />
 
-              <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+              <Border Grid.Column="1"
+                      Width="40" Height="40"
+                      Margin="0,0,8,0"
+                      CornerRadius="6"
+                      ClipToBounds="True"
+                      Background="{DynamicResource Brush.SurfaceElevated}"
+                      IsVisible="{Binding IsImage}">
+                <Image Source="{Binding Thumbnail}"
+                       Stretch="UniformToFill" />
+              </Border>
+
+              <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
                 <TextBlock Text="{Binding Preview}"
                            TextTrimming="CharacterEllipsis"
                            Foreground="{DynamicResource Brush.Text}"
@@ -110,7 +132,7 @@
                            FontSize="{DynamicResource Font.Meta}" />
               </StackPanel>
 
-              <StackPanel Grid.Column="2"
+              <StackPanel Grid.Column="3"
                           Orientation="Horizontal"
                           Spacing="2"
                           VerticalAlignment="Center">

@@ -1,8 +1,10 @@
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Inkboard.Application.Services;
@@ -36,7 +38,7 @@ public partial class PopupViewModel : ViewModelBase
         _capture.HistoryChanged += (_, _) =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = RefreshAsync());
         _settings.Changed += (_, _) =>
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = RefreshHintAsync());
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = OnSettingsChangedAsync());
     }
 
     public ObservableCollection<HistoryItemRow> Items { get; } = new();
@@ -51,10 +53,14 @@ public partial class PopupViewModel : ViewModelBase
     private HistoryItemRow? _selectedItem;
 
     [ObservableProperty]
-    private string _statusText = "复制任意文本，会出现在这里";
+    private string _statusText = "复制任意文本或图片，会出现在这里";
 
     [ObservableProperty]
     private string _shortcutHint = "Ctrl+Shift+V · Enter 粘贴 · Alt+Enter 仅复制";
+
+    /// <summary>暂停捕获时在弹出层顶部提示，避免用户以为软件坏了。</summary>
+    [ObservableProperty]
+    private bool _isPaused;
 
     partial void OnSearchTextChanged(string value) => _ = RefreshAsync();
 
@@ -72,9 +78,16 @@ public partial class PopupViewModel : ViewModelBase
         return settings.ShouldPaste(altHeld);
     }
 
+    private async Task OnSettingsChangedAsync()
+    {
+        await RefreshHintAsync().ConfigureAwait(true);
+        await RefreshAsync().ConfigureAwait(true);
+    }
+
     public async Task RefreshHintAsync()
     {
         var s = await _settings.LoadAsync().ConfigureAwait(true);
+        IsPaused = s.PauseCapture;
         ShortcutHint = s.PasteByDefault
             ? $"{s.PopupHotkey} · Enter 粘贴 · Alt+Enter 仅复制"
             : $"{s.PopupHotkey} · Enter 仅复制 · Alt+Enter 粘贴";
@@ -82,6 +95,9 @@ public partial class PopupViewModel : ViewModelBase
 
     public async Task RefreshAsync()
     {
+        var settings = await _settings.LoadAsync().ConfigureAwait(true);
+        IsPaused = settings.PauseCapture;
+
         var query = string.IsNullOrWhiteSpace(SearchText) ? null : SearchText;
         var list = await _history.GetVisibleAsync(query).ConfigureAwait(true);
 
@@ -98,9 +114,11 @@ public partial class PopupViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(IsEmpty));
 
-        StatusText = IsEmpty
-            ? "还没有历史 — 复制点什么吧"
-            : $"{Items.Count} 条记录";
+        StatusText = IsPaused
+            ? "已暂停捕获 — 托盘可恢复"
+            : IsEmpty
+                ? "还没有历史 — 复制点什么吧"
+                : $"{Items.Count} 条记录";
     }
 
     [RelayCommand]
@@ -150,30 +168,64 @@ public sealed class HistoryItemRow
     public string Preview { get; init; } = string.Empty;
     public string Meta { get; init; } = string.Empty;
     public bool IsPinned { get; init; }
-    /// <summary>置顶星透明度：已置顶实心，未置顶淡显可点。</summary>
     public double PinOpacity => IsPinned ? 1.0 : 0.35;
     public byte[] Payload { get; init; } = Array.Empty<byte>();
     public DateTimeOffset CopiedAt { get; init; }
+    public ClipboardContentKind Kind { get; init; }
+    public bool IsImage => Kind == ClipboardContentKind.Image;
+    public bool IsText => Kind == ClipboardContentKind.Text;
 
-    public static HistoryItemRow From(HistoryItem item) => new()
+    /// <summary>图片缩略图；解码失败时为 null，列表仍显示 Preview 文案。</summary>
+    public Bitmap? Thumbnail { get; init; }
+
+    public static HistoryItemRow From(HistoryItem item)
     {
-        Id = item.Id,
-        Preview = string.IsNullOrWhiteSpace(item.Preview)
-            ? "(空)"
-            : item.Preview.Replace('\r', ' ').Replace('\n', ' '),
-        Meta = (item.IsPinned ? "置顶 · " : string.Empty)
-               + item.CopiedAt.ToLocalTime().ToString("HH:mm:ss"),
-        IsPinned = item.IsPinned,
-        Payload = item.Payload,
-        CopiedAt = item.CopiedAt,
-    };
+        Bitmap? thumb = null;
+        if (item.Kind == ClipboardContentKind.Image && item.Payload.Length > 0)
+        {
+            try
+            {
+                using var stream = new MemoryStream(item.Payload);
+                thumb = new Bitmap(stream);
+            }
+            catch
+            {
+                // 损坏图片不阻断列表
+            }
+        }
+
+        var preview = item.Kind switch
+        {
+            ClipboardContentKind.Image => string.IsNullOrWhiteSpace(item.Preview) ? "图片" : item.Preview,
+            _ => string.IsNullOrWhiteSpace(item.Preview)
+                ? "(空)"
+                : item.Preview.Replace('\r', ' ').Replace('\n', ' '),
+        };
+
+        return new HistoryItemRow
+        {
+            Id = item.Id,
+            Preview = preview,
+            Meta = (item.IsPinned ? "置顶 · " : string.Empty)
+                   + item.CopiedAt.ToLocalTime().ToString("HH:mm:ss"),
+            IsPinned = item.IsPinned,
+            Payload = item.Payload,
+            CopiedAt = item.CopiedAt,
+            Kind = item.Kind,
+            Thumbnail = thumb,
+        };
+    }
 
     public HistoryItem ToEntity() => new()
     {
         Id = Id,
         Preview = Preview,
-        Kind = ClipboardContentKind.Text,
-        Payload = Payload.Length > 0 ? Payload : Encoding.UTF8.GetBytes(Preview),
+        Kind = Kind,
+        Payload = Payload.Length > 0
+            ? Payload
+            : Kind == ClipboardContentKind.Text
+                ? Encoding.UTF8.GetBytes(Preview)
+                : Array.Empty<byte>(),
         CopiedAt = CopiedAt,
         PinKey = IsPinned ? "pin" : null,
     };

@@ -1,28 +1,28 @@
 namespace Inkboard.Domain.Rules;
 
 using Inkboard.Domain.Entities;
+using Inkboard.Domain.Enums;
 
 /// <summary>
-/// 历史列表的纯领域规则：去重、上限裁剪、置顶排序。
-/// 不含 IO，便于单测。
+/// 历史列表纯规则：去重、置顶排序、上限裁剪。不含 IO。
 /// </summary>
 public static class HistoryRules
 {
     /// <summary>
-    /// 若新条目与最近一条预览相同且类型相同，视为重复（应刷新时间而非再插一条）。
+    /// 文本比预览；图片/文件比载荷字节，避免「同类型不同内容」被误合并。
     /// </summary>
     public static bool IsDuplicateOf(HistoryItem newer, HistoryItem? existing)
     {
-        if (existing is null)
+        if (existing is null || newer.Kind != existing.Kind)
             return false;
 
-        return newer.Kind == existing.Kind
-               && string.Equals(newer.Preview, existing.Preview, StringComparison.Ordinal);
+        if (newer.Kind == ClipboardContentKind.Text)
+            return string.Equals(newer.Preview, existing.Preview, StringComparison.Ordinal);
+
+        return newer.Payload.AsSpan().SequenceEqual(existing.Payload);
     }
 
-    /// <summary>
-    /// 按「置顶优先，再按复制时间倒序」排序。
-    /// </summary>
+    /// <summary>置顶优先，再按复制时间倒序。</summary>
     public static IReadOnlyList<HistoryItem> SortForDisplay(IEnumerable<HistoryItem> items)
     {
         return items
@@ -31,18 +31,13 @@ public static class HistoryRules
             .ToList();
     }
 
-    /// <summary>
-    /// 保留置顶项 + 最近的非置顶项，使总数不超过 <paramref name="maxCount"/>。
-    /// </summary>
+    /// <summary>保留置顶 + 最近非置顶，使总数不超过上限。</summary>
     public static IReadOnlyList<HistoryItem> TrimToLimit(IEnumerable<HistoryItem> items, int maxCount)
     {
         if (maxCount < 1)
             throw new ArgumentOutOfRangeException(nameof(maxCount), "历史上限至少为 1。");
 
         var ordered = SortForDisplay(items);
-        if (ordered.Count <= maxCount)
-            return ordered;
-
-        return ordered.Take(maxCount).ToList();
+        return ordered.Count <= maxCount ? ordered : ordered.Take(maxCount).ToList();
     }
 }

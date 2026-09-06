@@ -38,6 +38,32 @@ public class HistoryRulesTests
         Assert.Equal("t0", trimmed[0].Preview);
     }
 
+    [Fact]
+    public void IsDuplicateOf_Image_ComparesPayloadNotPreview()
+    {
+        var a = new HistoryItem
+        {
+            Preview = "图片",
+            Kind = ClipboardContentKind.Image,
+            Payload = [1, 2, 3],
+        };
+        var same = new HistoryItem
+        {
+            Preview = "图片",
+            Kind = ClipboardContentKind.Image,
+            Payload = [1, 2, 3],
+        };
+        var different = new HistoryItem
+        {
+            Preview = "图片",
+            Kind = ClipboardContentKind.Image,
+            Payload = [9, 9, 9],
+        };
+
+        Assert.True(HistoryRules.IsDuplicateOf(same, a));
+        Assert.False(HistoryRules.IsDuplicateOf(different, a));
+    }
+
     private static HistoryItem Text(string preview, DateTimeOffset? at = null, string? pinKey = null) => new()
     {
         Preview = preview,

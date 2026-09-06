@@ -32,4 +32,19 @@ public class HistorySearchTests
 
         Assert.Equal(2, new HistorySearch().Search(items, " ").Count);
     }
+
+    [Fact]
+    public void Search_FuzzySubsequence_MatchesOutOfOrderGaps()
+    {
+        var items = new[]
+        {
+            new HistoryItem { Preview = "Clipboard Manager", Kind = ClipboardContentKind.Text },
+            new HistoryItem { Preview = "Unrelated", Kind = ClipboardContentKind.Text },
+        };
+
+        var hits = new HistorySearch().Search(items, "clmgr");
+
+        Assert.Single(hits);
+        Assert.Equal("Clipboard Manager", hits[0].Preview);
+    }
 }

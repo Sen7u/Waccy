@@ -24,6 +24,6 @@ public sealed class HistoryItem
 
     public bool IsPinned => PinKey is not null;
 
-    /// <summary>原始载荷（文本 UTF-8、图片字节或文件路径列表的序列化）。骨架阶段仅占位。</summary>
+    /// <summary>原始载荷（文本 UTF-8 或 PNG 等字节）。按 Kind 解释。</summary>
     public byte[] Payload { get; set; } = Array.Empty<byte>();
 }
