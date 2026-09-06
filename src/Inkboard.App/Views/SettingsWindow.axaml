@@ -1,0 +1,94 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Inkboard.App.ViewModels"
+        x:Class="Inkboard.App.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="Inkboard 设置"
+        Width="420"
+        Height="480"
+        MinWidth="360"
+        MinHeight="400"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Brush.Surface}"
+        CanResize="True"
+        ShowInTaskbar="True">
+
+  <Border Padding="20" Background="{DynamicResource Brush.SurfaceGradient}">
+    <DockPanel>
+      <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+        <TextBlock Text="设置"
+                   FontSize="{DynamicResource Font.Title}"
+                   FontWeight="SemiBold"
+                   Foreground="{DynamicResource Brush.AccentSoft}" />
+        <TextBlock Text="{Binding StatusText}"
+                   DockPanel.Dock="Right"
+                   FontSize="{DynamicResource Font.Meta}"
+                   Foreground="{DynamicResource Brush.TextMuted}"
+                   VerticalAlignment="Center" />
+      </DockPanel>
+
+      <Button DockPanel.Dock="Bottom"
+              Classes="ink-ghost"
+              Content="保存"
+              Command="{Binding SaveCommand}"
+              HorizontalAlignment="Right"
+              Margin="0,16,0,0"
+              Padding="16,8" />
+
+      <ScrollViewer>
+        <StackPanel Spacing="14">
+          <StackPanel Spacing="6">
+            <TextBlock Text="历史上限"
+                       Foreground="{DynamicResource Brush.Text}"
+                       FontSize="{DynamicResource Font.Body}" />
+            <NumericUpDown Value="{Binding HistoryLimit}"
+                           Minimum="1"
+                           Maximum="5000"
+                           Increment="10"
+                           FormatString="0"
+                           Classes="ink-search" />
+          </StackPanel>
+
+          <StackPanel Spacing="6">
+            <TextBlock Text="弹出热键"
+                       Foreground="{DynamicResource Brush.Text}"
+                       FontSize="{DynamicResource Font.Body}" />
+            <TextBox Classes="ink-search"
+                     Text="{Binding PopupHotkey}"
+                     PlaceholderText="例如 Ctrl+Shift+V" />
+            <TextBlock Text="保存后立即重注册；冲突时回退窗口内快捷键 / 托盘。"
+                       FontSize="{DynamicResource Font.Meta}"
+                       Foreground="{DynamicResource Brush.TextMuted}"
+                       TextWrapping="Wrap" />
+          </StackPanel>
+
+          <StackPanel Spacing="6">
+            <CheckBox IsChecked="{Binding PasteByDefault}"
+                      Content="选中后默认粘贴"
+                      Foreground="{DynamicResource Brush.Text}" />
+            <TextBlock Text="开启：Enter / 单击粘贴，Alt 仅复制。关闭则相反。"
+                       FontSize="{DynamicResource Font.Meta}"
+                       Foreground="{DynamicResource Brush.TextMuted}"
+                       TextWrapping="Wrap" />
+          </StackPanel>
+
+          <StackPanel Spacing="6">
+            <TextBlock Text="忽略的应用（每行一个进程名）"
+                       Foreground="{DynamicResource Brush.Text}"
+                       FontSize="{DynamicResource Font.Body}" />
+            <TextBox Classes="ink-search"
+                     Text="{Binding IgnoredAppsText}"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     MinHeight="120"
+                     PlaceholderText="例如&#x0a;1Password&#x0a;KeePassXC" />
+            <TextBlock Text="Windows 填 ProcessName（如 notepad、chrome），大小写不敏感。"
+                       FontSize="{DynamicResource Font.Meta}"
+                       Foreground="{DynamicResource Brush.TextMuted}"
+                       TextWrapping="Wrap" />
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+  </Border>
+</Window>

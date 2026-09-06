@@ -21,17 +21,22 @@ public partial class PopupViewModel : ViewModelBase
     private readonly HistoryService _history;
     private readonly ClipboardCaptureService _capture;
     private readonly IClipboardWriter _writer;
+    private readonly SettingsService _settings;
 
     public PopupViewModel(
         HistoryService history,
         ClipboardCaptureService capture,
-        IClipboardWriter writer)
+        IClipboardWriter writer,
+        SettingsService settings)
     {
         _history = history;
         _capture = capture;
         _writer = writer;
+        _settings = settings;
         _capture.HistoryChanged += (_, _) =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = RefreshAsync());
+        _settings.Changed += (_, _) =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = RefreshHintAsync());
     }
 
     public ObservableCollection<HistoryItemRow> Items { get; } = new();
@@ -48,12 +53,31 @@ public partial class PopupViewModel : ViewModelBase
     [ObservableProperty]
     private string _statusText = "复制任意文本，会出现在这里";
 
+    [ObservableProperty]
+    private string _shortcutHint = "Ctrl+Shift+V · Enter 粘贴 · Alt+Enter 仅复制";
+
     partial void OnSearchTextChanged(string value) => _ = RefreshAsync();
 
     public async Task InitializeAsync()
     {
         await _capture.StartAsync().ConfigureAwait(true);
+        await RefreshHintAsync().ConfigureAwait(true);
         await RefreshAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>按 PasteByDefault 与 Alt 异或，决定 Hide 时是否注入粘贴。</summary>
+    public async Task<bool> ResolvePasteAfterAsync(bool altHeld)
+    {
+        var settings = await _settings.LoadAsync().ConfigureAwait(true);
+        return settings.ShouldPaste(altHeld);
+    }
+
+    public async Task RefreshHintAsync()
+    {
+        var s = await _settings.LoadAsync().ConfigureAwait(true);
+        ShortcutHint = s.PasteByDefault
+            ? $"{s.PopupHotkey} · Enter 粘贴 · Alt+Enter 仅复制"
+            : $"{s.PopupHotkey} · Enter 仅复制 · Alt+Enter 粘贴";
     }
 
     public async Task RefreshAsync()

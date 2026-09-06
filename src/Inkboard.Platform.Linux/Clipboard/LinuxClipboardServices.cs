@@ -4,6 +4,7 @@ using System.Text;
 using Inkboard.Domain.Entities;
 using Inkboard.Domain.Enums;
 using Inkboard.Infrastructure.Abstractions.Clipboard;
+using Inkboard.Infrastructure.Abstractions.Focus;
 using TextCopy;
 
 /// <summary>
@@ -12,10 +13,14 @@ using TextCopy;
 /// </summary>
 public sealed class LinuxClipboardMonitor : IClipboardMonitor
 {
+    private readonly IForegroundAppInfo _foregroundApp;
     private readonly PeriodicTimer _timer = new(TimeSpan.FromMilliseconds(500));
     private CancellationTokenSource? _cts;
     private Task? _loop;
     private string? _lastText;
+
+    public LinuxClipboardMonitor(IForegroundAppInfo foregroundApp)
+        => _foregroundApp = foregroundApp;
 
     public event EventHandler<HistoryItem>? Changed;
 
@@ -77,6 +82,7 @@ public sealed class LinuxClipboardMonitor : IClipboardMonitor
                 Kind = ClipboardContentKind.Text,
                 Payload = Encoding.UTF8.GetBytes(text),
                 CopiedAt = DateTimeOffset.UtcNow,
+                SourceApp = _foregroundApp.TryGetProcessName(),
             };
             Changed?.Invoke(this, item);
         }

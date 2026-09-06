@@ -9,8 +9,8 @@ using Inkboard.App.Composition;
 using Inkboard.App.Services;
 using Inkboard.App.ViewModels;
 using Inkboard.App.Views;
+using Inkboard.Application.Services;
 using Inkboard.Infrastructure.Abstractions.Hotkey;
-using Inkboard.Infrastructure.Abstractions.Settings;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Inkboard.App;
@@ -25,8 +25,12 @@ public partial class App : Avalonia.Application
 
     private PopupHost? _popupHost;
     private IHotkeyService? _hotkeys;
+    private SettingsService? _settings;
     private TrayIcon? _tray;
     private PopupWindow? _popup;
+    private SettingsWindow? _settingsWindow;
+    private NativeMenuItem? _pauseItem;
+    private NativeMenuItem? _pasteDefaultItem;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -36,6 +40,7 @@ public partial class App : Avalonia.Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            _settings = Services.GetRequiredService<SettingsService>();
             _popupHost = Services.GetRequiredService<PopupHost>();
             _popup = new PopupWindow
             {
@@ -53,12 +58,14 @@ public partial class App : Avalonia.Application
             _hotkeys.HotkeyPressed += (_, _) =>
                 Dispatcher.UIThread.Post(() => _ = _popupHost.ToggleAsync());
 
+            _settings.Changed += (_, _) =>
+                Dispatcher.UIThread.Post(() => _ = OnSettingsChangedAsync());
+
             try
             {
-                var settings = await Services.GetRequiredService<ISettingsStore>()
-                    .LoadAsync()
-                    .ConfigureAwait(true);
+                var settings = await _settings.LoadAsync().ConfigureAwait(true);
                 await _hotkeys.RegisterAsync(settings.PopupHotkey).ConfigureAwait(true);
+                SyncTrayChecks(settings.PauseCapture, settings.PasteByDefault);
             }
             catch
             {
@@ -77,6 +84,31 @@ public partial class App : Avalonia.Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private async Task OnSettingsChangedAsync()
+    {
+        if (_settings is null || _hotkeys is null)
+            return;
+
+        try
+        {
+            var s = await _settings.LoadAsync().ConfigureAwait(true);
+            SyncTrayChecks(s.PauseCapture, s.PasteByDefault);
+            await _hotkeys.RegisterAsync(s.PopupHotkey).ConfigureAwait(true);
+        }
+        catch
+        {
+            // 重注册失败时保留旧热键，不弹错打断用户
+        }
+    }
+
+    private void SyncTrayChecks(bool pauseCapture, bool pasteByDefault)
+    {
+        if (_pauseItem is not null)
+            _pauseItem.IsChecked = pauseCapture;
+        if (_pasteDefaultItem is not null)
+            _pasteDefaultItem.IsChecked = pasteByDefault;
     }
 
     /// <summary>
@@ -99,6 +131,25 @@ public partial class App : Avalonia.Application
         toggle.Click += (_, _) =>
             Dispatcher.UIThread.Post(() => _ = _popupHost?.ToggleAsync());
 
+        _pauseItem = new NativeMenuItem("暂停捕获")
+        {
+            ToggleType = MenuItemToggleType.CheckBox,
+        };
+        _pauseItem.Click += (_, _) =>
+            Dispatcher.UIThread.Post(() => _ = TogglePauseCaptureAsync());
+
+        _pasteDefaultItem = new NativeMenuItem("选中后默认粘贴")
+        {
+            ToggleType = MenuItemToggleType.CheckBox,
+            IsChecked = true,
+        };
+        _pasteDefaultItem.Click += (_, _) =>
+            Dispatcher.UIThread.Post(() => _ = TogglePasteByDefaultAsync());
+
+        var openSettings = new NativeMenuItem("设置…");
+        openSettings.Click += (_, _) =>
+            Dispatcher.UIThread.Post(OpenSettings);
+
         var quit = new NativeMenuItem("退出");
         quit.Click += (_, _) =>
         {
@@ -111,9 +162,51 @@ public partial class App : Avalonia.Application
             Icon = icon,
             ToolTipText = "Inkboard",
             IsVisible = true,
-            Menu = new NativeMenu { Items = { toggle, quit } },
+            Menu = new NativeMenu
+            {
+                Items =
+                {
+                    toggle,
+                    _pauseItem,
+                    _pasteDefaultItem,
+                    openSettings,
+                    quit,
+                },
+            },
         };
         _tray.Clicked += (_, _) =>
             Dispatcher.UIThread.Post(() => _ = _popupHost?.ToggleAsync());
+    }
+
+    private async Task TogglePauseCaptureAsync()
+    {
+        if (_settings is null)
+            return;
+
+        await _settings.UpdateAsync(s => s.PauseCapture = !s.PauseCapture).ConfigureAwait(true);
+    }
+
+    private async Task TogglePasteByDefaultAsync()
+    {
+        if (_settings is null)
+            return;
+
+        await _settings.UpdateAsync(s => s.PasteByDefault = !s.PasteByDefault).ConfigureAwait(true);
+    }
+
+    private void OpenSettings()
+    {
+        if (_settingsWindow is { IsVisible: true })
+        {
+            _settingsWindow.Activate();
+            return;
+        }
+
+        _settingsWindow = new SettingsWindow
+        {
+            DataContext = Services.GetRequiredService<SettingsViewModel>(),
+        };
+        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Show();
     }
 }

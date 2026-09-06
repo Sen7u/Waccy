@@ -24,6 +24,7 @@ public static class AppComposition
 
         services.AddSingleton<PopupHost>();
         services.AddTransient<PopupViewModel>();
+        services.AddTransient<SettingsViewModel>();
 
         return services.BuildServiceProvider();
     }

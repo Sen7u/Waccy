@@ -12,6 +12,7 @@ public static class ApplicationServiceCollectionExtensions
     {
         services.AddSingleton<HistoryService>();
         services.AddSingleton<ClipboardCaptureService>();
+        services.AddSingleton<SettingsService>();
         return services;
     }
 }

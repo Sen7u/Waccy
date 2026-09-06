@@ -26,6 +26,7 @@ public static class WindowsPlatformServiceCollectionExtensions
         services.AddSingleton<ITrayService, WindowsTrayService>();
         services.AddSingleton<IPointerScreen, WindowsPointerScreen>();
         services.AddSingleton<IForegroundFocus, WindowsForegroundFocus>();
+        services.AddSingleton<IForegroundAppInfo, WindowsForegroundAppInfo>();
         return services;
     }
 }

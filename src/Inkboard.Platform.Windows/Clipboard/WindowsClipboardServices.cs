@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using Inkboard.Domain.Entities;
 using Inkboard.Domain.Enums;
 using Inkboard.Infrastructure.Abstractions.Clipboard;
+using Inkboard.Infrastructure.Abstractions.Focus;
 using TextCopy;
 
 /// <summary>
@@ -12,10 +13,14 @@ using TextCopy;
 /// </summary>
 public sealed class WindowsClipboardMonitor : IClipboardMonitor
 {
+    private readonly IForegroundAppInfo _foregroundApp;
     private readonly PeriodicTimer _timer = new(TimeSpan.FromMilliseconds(400));
     private CancellationTokenSource? _cts;
     private Task? _loop;
     private string? _lastText;
+
+    public WindowsClipboardMonitor(IForegroundAppInfo foregroundApp)
+        => _foregroundApp = foregroundApp;
 
     public event EventHandler<HistoryItem>? Changed;
 
@@ -76,6 +81,8 @@ public sealed class WindowsClipboardMonitor : IClipboardMonitor
                 Kind = ClipboardContentKind.Text,
                 Payload = Encoding.UTF8.GetBytes(text),
                 CopiedAt = DateTimeOffset.UtcNow,
+                // 在变更瞬间取前台进程：轮询延迟下仍近似「复制发生时」的应用
+                SourceApp = _foregroundApp.TryGetProcessName(),
             });
         }
     }

@@ -26,6 +26,7 @@ public static class LinuxPlatformServiceCollectionExtensions
         services.AddSingleton<ITrayService, LinuxTrayService>();
         services.AddSingleton<IPointerScreen, LinuxPointerScreen>();
         services.AddSingleton<IForegroundFocus, LinuxForegroundFocus>();
+        services.AddSingleton<IForegroundAppInfo, LinuxForegroundAppInfo>();
         return services;
     }
 }
