@@ -148,7 +148,7 @@ public partial class App : Avalonia.Application
 
         var openSettings = new NativeMenuItem("设置…");
         openSettings.Click += (_, _) =>
-            Dispatcher.UIThread.Post(OpenSettings);
+            Dispatcher.UIThread.Post(ShowSettings);
 
         var quit = new NativeMenuItem("退出");
         quit.Click += (_, _) =>
@@ -194,7 +194,8 @@ public partial class App : Avalonia.Application
         await _settings.UpdateAsync(s => s.PasteByDefault = !s.PasteByDefault).ConfigureAwait(true);
     }
 
-    private void OpenSettings()
+    /// <summary>托盘与弹出层 Ctrl+, 共用；Linux 托盘菜单不稳时仍可进设置。</summary>
+    public void ShowSettings()
     {
         if (_settingsWindow is { IsVisible: true })
         {

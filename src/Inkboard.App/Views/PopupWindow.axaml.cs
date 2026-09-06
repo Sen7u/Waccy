@@ -98,6 +98,15 @@ public partial class PopupWindow : Window
             return;
         }
 
+        // Ctrl+,：打开设置（对齐常见偏好快捷键；Linux 托盘菜单不可靠时的入口）
+        if (e.Key == Key.OemComma && e.KeyModifiers == KeyModifiers.Control)
+        {
+            if (Avalonia.Application.Current is App app)
+                app.ShowSettings();
+            e.Handled = true;
+            return;
+        }
+
         // 搜索框聚焦时仍可用方向键浏览列表（对齐 Maccy）
         if (e.Key is Key.Up or Key.Down && vm.Items.Count > 0)
         {
