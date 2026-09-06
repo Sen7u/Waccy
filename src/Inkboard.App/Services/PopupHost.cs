@@ -6,34 +6,44 @@ using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Inkboard.Infrastructure.Abstractions.Clipboard;
+using Inkboard.Infrastructure.Abstractions.Focus;
 using Inkboard.Infrastructure.Abstractions.Screen;
 
 namespace Inkboard.App.Services;
 
 /// <summary>
 /// 弹出层宿主：对齐 Maccy FloatingPanel —
-/// 贴光标显示、失焦关闭、软隐藏（移出屏幕）。
-///
-/// Linux/X11：动效只打 RootChrome；Window.Opacity 保持 1。
+/// 默认 450×800、贴光标下方、失焦关闭、软隐藏；关闭后交还前台焦点。
 /// </summary>
 public sealed class PopupHost
 {
     /// <summary>对齐 Maccy Defaults.windowSize 默认宽。</summary>
     public const double DefaultWidth = 450;
 
-    /// <summary>首屏可见高度：比 Maccy 默认 max 800 更紧凑，仍可滚动。</summary>
-    public const double DefaultHeight = 380;
+    /// <summary>对齐 Maccy Defaults.windowSize 默认高（内容不足时仍固定可视区，列表可滚）。</summary>
+    public const double DefaultHeight = 800;
 
     private readonly IPointerScreen _pointer;
+    private readonly IForegroundFocus _focus;
+    private readonly IPasteSimulator _paste;
+
     private Window? _window;
     private Control? _chrome;
     private bool _busy;
     private bool _open;
     private bool _ignoreDeactivate;
-    /// <summary>软隐藏待命中：禁止 TryRepair 把窗口又拉回前台。</summary>
     private bool _dormant;
 
-    public PopupHost(IPointerScreen pointer) => _pointer = pointer;
+    public PopupHost(IPointerScreen pointer, IForegroundFocus focus, IPasteSimulator paste)
+    {
+        _pointer = pointer;
+        _focus = focus;
+        _paste = paste;
+    }
+
+    /// <summary>每次真正显示完成后触发（用于聚焦搜索框等）。</summary>
+    public event EventHandler? Shown;
 
     public void Attach(Window window)
     {
@@ -92,6 +102,7 @@ public sealed class PopupHost
         if (IsOpen && Chrome.Opacity >= 0.99)
         {
             _window.Activate();
+            Shown?.Invoke(this, EventArgs.Empty);
             return;
         }
 
@@ -99,6 +110,9 @@ public sealed class PopupHost
         _ignoreDeactivate = true;
         try
         {
+            // 抢焦点前记下前台应用，关闭/粘贴时交还（对齐 Maccy resignKey）
+            _focus.Capture();
+
             var target = Chrome;
             _window.Opacity = 1;
             _window.IsHitTestVisible = true;
@@ -117,16 +131,17 @@ public sealed class PopupHost
 
             _dormant = false;
 
-            // 对齐 Maccy popupPosition=cursor：每次唤醒重新贴光标
+            // 对齐 Maccy popupPosition=cursor：顶边贴光标，主体在光标下方
             _window.Position = ResolveCursorOrigin(
                 (int)Math.Round(_window.Width * (_window.RenderScaling <= 0 ? 1 : _window.RenderScaling)),
                 (int)Math.Round(_window.Height * (_window.RenderScaling <= 0 ? 1 : _window.RenderScaling)));
 
             _window.Activate();
 
-            await AnimateAsync(target, 0, 1, 0.96, 1).ConfigureAwait(true);
+            await AnimateAsync(target, 0, 1, 0.98, 1).ConfigureAwait(true);
             EnsureShownVisuals(target);
             _open = true;
+            Shown?.Invoke(this, EventArgs.Empty);
         }
         catch
         {
@@ -137,12 +152,14 @@ public sealed class PopupHost
         finally
         {
             _busy = false;
-            // 稍后再听失焦，避免 Activate 过程误关
             Dispatcher.UIThread.Post(() => _ignoreDeactivate = false, DispatcherPriority.Background);
         }
     }
 
-    public async Task HideAsync()
+    /// <param name="pasteAfter">
+    /// true 时：关闭并把焦点交回原应用后发送 Ctrl+V（对齐 Maccy ⌥+Enter 粘贴）。
+    /// </param>
+    public async Task HideAsync(bool pasteAfter = false)
     {
         if (_window is null || !_open || _busy)
             return;
@@ -153,7 +170,7 @@ public sealed class PopupHost
         try
         {
             var target = Chrome;
-            await AnimateAsync(target, 1, 0, 1, 0.96).ConfigureAwait(true);
+            await AnimateAsync(target, 1, 0, 1, 0.98).ConfigureAwait(true);
 
             _window.IsHitTestVisible = false;
             _window.Topmost = false;
@@ -162,6 +179,14 @@ public sealed class PopupHost
             Reset(target);
             _open = false;
             _dormant = true;
+
+            // 交还焦点；粘贴路径稍等前台切换完成再发 Ctrl+V
+            _focus.TryRestore();
+            if (pasteAfter)
+            {
+                await Task.Delay(80).ConfigureAwait(true);
+                await _paste.PasteAsync().ConfigureAwait(true);
+            }
         }
         finally
         {
@@ -189,8 +214,8 @@ public sealed class PopupHost
     }
 
     /// <summary>
-    /// Maccy：窗口顶边贴光标、主体在光标下方，并钳进工作区。
-    /// Windows/Avalonia 坐标原点左上、Y 向下，直接以光标为左上角再钳制即可。
+    /// Maccy（macOS Y 向上）：origin.y = cursor.y - height → 顶边贴光标。
+    /// Windows/Avalonia Y 向下：直接以光标为左上角即可，再钳进工作区。
     /// </summary>
     private PixelPoint ResolveCursorOrigin(int pixelWidth, int pixelHeight)
     {
@@ -225,7 +250,6 @@ public sealed class PopupHost
 
     private void OnDeactivated(object? sender, EventArgs e)
     {
-        // 对齐 Maccy FloatingPanel.resignKey → close
         if (_ignoreDeactivate || !_open || _busy)
             return;
 
@@ -256,7 +280,7 @@ public sealed class PopupHost
     {
         c.Opacity = 0;
         c.RenderTransformOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative);
-        c.RenderTransform = new ScaleTransform(0.96, 0.96);
+        c.RenderTransform = new ScaleTransform(0.98, 0.98);
     }
 
     private static void Reset(Control c)
@@ -272,7 +296,8 @@ public sealed class PopupHost
         double fromScale,
         double toScale)
     {
-        var ms = ReadMs(control, "Motion.PopupMs", 200);
+        // Maccy 面板本身无进出场动画；这里保留极短淡入淡出，默认 150ms
+        var ms = ReadMs(control, "Motion.PopupMs", 150);
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         Dispatcher.UIThread.Post(async () =>

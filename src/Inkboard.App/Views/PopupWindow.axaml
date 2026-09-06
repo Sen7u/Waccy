@@ -4,7 +4,7 @@
         x:Class="Inkboard.App.Views.PopupWindow"
         x:DataType="vm:PopupViewModel"
         Title="Inkboard"
-        Width="450" Height="380"
+        Width="450" Height="800"
         CanResize="False"
         WindowStartupLocation="Manual"
         Background="Transparent"
@@ -31,7 +31,7 @@
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource Brush.AccentSoft}"
                      VerticalAlignment="Center" />
-          <TextBlock Text="Ctrl+Shift+V"
+          <TextBlock Text="Ctrl+Shift+V · Enter 复制 · Alt+Enter 粘贴"
                      DockPanel.Dock="Right"
                      FontSize="{DynamicResource Font.Meta}"
                      Foreground="{DynamicResource Brush.TextMuted}"

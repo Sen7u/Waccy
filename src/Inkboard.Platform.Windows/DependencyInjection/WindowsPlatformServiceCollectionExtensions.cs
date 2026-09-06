@@ -1,10 +1,12 @@
 namespace Inkboard.Platform.Windows.DependencyInjection;
 
 using Inkboard.Infrastructure.Abstractions.Clipboard;
+using Inkboard.Infrastructure.Abstractions.Focus;
 using Inkboard.Infrastructure.Abstractions.Hotkey;
 using Inkboard.Infrastructure.Abstractions.Screen;
 using Inkboard.Infrastructure.Abstractions.Tray;
 using Inkboard.Platform.Windows.Clipboard;
+using Inkboard.Platform.Windows.Focus;
 using Inkboard.Platform.Windows.Hotkey;
 using Inkboard.Platform.Windows.Screen;
 using Inkboard.Platform.Windows.Tray;
@@ -23,6 +25,7 @@ public static class WindowsPlatformServiceCollectionExtensions
         services.AddSingleton<IHotkeyService, WindowsHotkeyService>();
         services.AddSingleton<ITrayService, WindowsTrayService>();
         services.AddSingleton<IPointerScreen, WindowsPointerScreen>();
+        services.AddSingleton<IForegroundFocus, WindowsForegroundFocus>();
         return services;
     }
 }

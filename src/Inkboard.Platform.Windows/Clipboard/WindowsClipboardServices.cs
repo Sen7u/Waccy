@@ -1,6 +1,7 @@
 namespace Inkboard.Platform.Windows.Clipboard;
 
 using System.Text;
+using System.Runtime.InteropServices;
 using Inkboard.Domain.Entities;
 using Inkboard.Domain.Enums;
 using Inkboard.Infrastructure.Abstractions.Clipboard;
@@ -92,9 +93,24 @@ public sealed class WindowsClipboardWriter : IClipboardWriter
 }
 
 /// <summary>
-/// Windows 粘贴：后续用 SendInput 发送 Ctrl+V；骨架阶段仅依赖写入剪贴板。
+/// Windows 粘贴：keybd_event 模拟 Ctrl+V（对齐 Maccy Clipboard.paste）。
+/// 调用前须已把焦点交回目标应用。
 /// </summary>
 public sealed class WindowsPasteSimulator : IPasteSimulator
 {
-    public Task PasteAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    private const byte VkControl = 0x11;
+    private const byte VkV = 0x56;
+    private const uint KeyUp = 0x0002;
+
+    public Task PasteAsync(CancellationToken cancellationToken = default)
+    {
+        keybd_event(VkControl, 0, 0, UIntPtr.Zero);
+        keybd_event(VkV, 0, 0, UIntPtr.Zero);
+        keybd_event(VkV, 0, KeyUp, UIntPtr.Zero);
+        keybd_event(VkControl, 0, KeyUp, UIntPtr.Zero);
+        return Task.CompletedTask;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 }

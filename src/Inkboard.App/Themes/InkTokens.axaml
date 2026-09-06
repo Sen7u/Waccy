@@ -43,7 +43,7 @@
   <x:Double x:Key="Font.Body">14</x:Double>
   <x:Double x:Key="Font.Meta">11</x:Double>
 
-  <x:Double x:Key="Motion.PopupMs">200</x:Double>
+  <x:Double x:Key="Motion.PopupMs">150</x:Double>
   <x:Double x:Key="Motion.SelectionMs">100</x:Double>
   <x:Double x:Key="Motion.DeleteMs">150</x:Double>
 </ResourceDictionary>

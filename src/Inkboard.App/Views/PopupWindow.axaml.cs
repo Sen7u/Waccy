@@ -22,6 +22,8 @@ public partial class PopupWindow : Window
     public PopupWindow()
     {
         AvaloniaXamlLoader.Load(this);
+        Width = PopupHost.DefaultWidth;
+        Height = PopupHost.DefaultHeight;
         Opened += OnOpened;
         KeyDown += OnKeyDown;
         Closing += OnClosing;
@@ -29,8 +31,12 @@ public partial class PopupWindow : Window
 
     public void BindHost(PopupHost host)
     {
+        if (_host is not null)
+            _host.Shown -= OnHostShown;
+
         _host = host;
         host.Attach(this);
+        host.Shown += OnHostShown;
     }
 
     /// <summary>进程退出时允许真正关闭。</summary>
@@ -41,8 +47,22 @@ public partial class PopupWindow : Window
         if (DataContext is PopupViewModel vm)
             await vm.InitializeAsync();
 
+        FocusSearch();
+    }
+
+    /// <summary>每次热键唤起都重新聚焦搜索（Opened 只在首次 Show 触发）。</summary>
+    private void OnHostShown(object? sender, EventArgs e)
+    {
+        if (DataContext is PopupViewModel vm && vm.SelectedItem is null && vm.Items.Count > 0)
+            vm.SelectedItem = vm.Items[0];
+
+        FocusSearch();
+    }
+
+    private void FocusSearch()
+    {
         if (this.FindControl<TextBox>("SearchBox") is { } search)
-            Dispatcher.UIThread.Post(() => search.Focus());
+            Dispatcher.UIThread.Post(() => search.Focus(), DispatcherPriority.Input);
     }
 
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
@@ -78,7 +98,7 @@ public partial class PopupWindow : Window
             return;
         }
 
-        // 搜索框聚焦时仍可用方向键浏览列表（对齐 Maccy 键盘导航）
+        // 搜索框聚焦时仍可用方向键浏览列表（对齐 Maccy）
         if (e.Key is Key.Up or Key.Down && vm.Items.Count > 0)
         {
             MoveSelection(vm, e.Key == Key.Down ? 1 : -1);
@@ -88,14 +108,16 @@ public partial class PopupWindow : Window
 
         if (e.Key == Key.Enter)
         {
-            await ConfirmSelectionAsync(vm);
+            // Alt+Enter：复制并粘贴到原前台应用（对齐 Maccy ⌥+Enter）
+            var paste = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
+            await ConfirmSelectionAsync(vm, paste);
             e.Handled = true;
         }
     }
 
     /// <summary>
-    /// 单击条目即复制并关闭（对齐 Maccy History.select 空修饰键行为）。
-    /// 置顶/删除按钮上的点击不触发。
+    /// 单击条目即复制并关闭（对齐 Maccy 空修饰键）。
+    /// Alt+单击：复制并粘贴到原应用。
     /// </summary>
     private async void OnItemTapped(object? sender, TappedEventArgs e)
     {
@@ -118,14 +140,15 @@ public partial class PopupWindow : Window
             return;
 
         vm.SelectedItem = row;
-        await ConfirmSelectionAsync(vm);
+        var paste = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
+        await ConfirmSelectionAsync(vm, paste);
     }
 
-    private async Task ConfirmSelectionAsync(PopupViewModel vm)
+    private async Task ConfirmSelectionAsync(PopupViewModel vm, bool pasteAfter = false)
     {
         await vm.ActivateCommand.ExecuteAsync(vm.SelectedItem);
         if (_host is not null)
-            await _host.HideAsync();
+            await _host.HideAsync(pasteAfter);
     }
 
     private static void MoveSelection(PopupViewModel vm, int delta)
