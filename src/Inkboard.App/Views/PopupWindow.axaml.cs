@@ -108,16 +108,16 @@ public partial class PopupWindow : Window
 
         if (e.Key == Key.Enter)
         {
-            // Alt+Enter：复制并粘贴到原前台应用（对齐 Maccy ⌥+Enter）
-            var paste = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
+            // 默认粘贴（对齐 Maccy pasteByDefault=true）；Alt+Enter 仅复制
+            var paste = !e.KeyModifiers.HasFlag(KeyModifiers.Alt);
             await ConfirmSelectionAsync(vm, paste);
             e.Handled = true;
         }
     }
 
     /// <summary>
-    /// 单击条目即复制并关闭（对齐 Maccy 空修饰键）。
-    /// Alt+单击：复制并粘贴到原应用。
+    /// 单击即复制并粘贴到原应用（对齐 Maccy 开启 Paste by default）。
+    /// Alt+单击：只写入剪贴板，不自动粘贴。
     /// </summary>
     private async void OnItemTapped(object? sender, TappedEventArgs e)
     {
@@ -140,11 +140,11 @@ public partial class PopupWindow : Window
             return;
 
         vm.SelectedItem = row;
-        var paste = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
+        var paste = !e.KeyModifiers.HasFlag(KeyModifiers.Alt);
         await ConfirmSelectionAsync(vm, paste);
     }
 
-    private async Task ConfirmSelectionAsync(PopupViewModel vm, bool pasteAfter = false)
+    private async Task ConfirmSelectionAsync(PopupViewModel vm, bool pasteAfter = true)
     {
         await vm.ActivateCommand.ExecuteAsync(vm.SelectedItem);
         if (_host is not null)

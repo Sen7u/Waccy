@@ -31,7 +31,7 @@
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource Brush.AccentSoft}"
                      VerticalAlignment="Center" />
-          <TextBlock Text="Ctrl+Shift+V · Enter 复制 · Alt+Enter 粘贴"
+          <TextBlock Text="Ctrl+Shift+V · Enter 粘贴 · Alt+Enter 仅复制"
                      DockPanel.Dock="Right"
                      FontSize="{DynamicResource Font.Meta}"
                      Foreground="{DynamicResource Brush.TextMuted}"
