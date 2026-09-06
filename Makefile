@@ -55,3 +55,15 @@ reference: ## 克隆 Maccy 到 reference/（只读对照，不入库）
 	else \
 		git clone --depth 1 $(REFERENCE_URL) $(REFERENCE_DIR); \
 	fi
+
+PUBLISH_DIR := dist/Inkboard-win-x64
+PUBLISH_ZIP := dist/Inkboard-win-x64.zip
+
+publish-win: ## 交叉编译 Windows x64 自包含 zip → dist/
+	@rm -rf $(PUBLISH_DIR) $(PUBLISH_ZIP)
+	dotnet publish $(APP_PROJECT) -c Release -r win-x64 --self-contained true \
+		-p:PublishSingleFile=false \
+		-p:IncludeNativeLibrariesForSelfExtract=true \
+		-o $(PUBLISH_DIR) --nologo
+	@cd dist && zip -qr Inkboard-win-x64.zip Inkboard-win-x64
+	@echo "已生成 $(PUBLISH_ZIP) ($$(du -h $(PUBLISH_ZIP) | cut -f1))"
