@@ -6,41 +6,82 @@ using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Inkboard.Infrastructure.Abstractions.Screen;
 
 namespace Inkboard.App.Services;
 
 /// <summary>
-/// 弹出层宿主：集中处理显示/隐藏与进出场动效。
+/// 弹出层宿主：对齐 Maccy FloatingPanel —
+/// 贴光标显示、失焦关闭、软隐藏（移出屏幕）。
 ///
-/// 关键点（Linux/X11 透明窗）：
-/// 1. 动效只打在 RootChrome，Window.Opacity 永远为 1——对 Window 做透明度会留下空壳。
-/// 2. 隐藏用软隐藏（移出屏幕 + 关闭命中），不 Hide/Minimize。
+/// Linux/X11：动效只打 RootChrome；Window.Opacity 保持 1。
 /// </summary>
 public sealed class PopupHost
 {
+    /// <summary>对齐 Maccy Defaults.windowSize 默认宽。</summary>
+    public const double DefaultWidth = 450;
+
+    /// <summary>首屏可见高度：比 Maccy 默认 max 800 更紧凑，仍可滚动。</summary>
+    public const double DefaultHeight = 380;
+
+    private readonly IPointerScreen _pointer;
     private Window? _window;
     private Control? _chrome;
     private bool _busy;
     private bool _open;
-    private PixelPoint? _restoredPosition;
+    private bool _ignoreDeactivate;
+    /// <summary>软隐藏待命中：禁止 TryRepair 把窗口又拉回前台。</summary>
+    private bool _dormant;
+
+    public PopupHost(IPointerScreen pointer) => _pointer = pointer;
 
     public void Attach(Window window)
     {
         if (_window is not null)
         {
             _window.Activated -= OnActivated;
+            _window.Deactivated -= OnDeactivated;
             _window.PropertyChanged -= OnWindowPropertyChanged;
         }
 
         _window = window;
-        // 必须在 Loaded 后解析；若此时为 null，首次 Show 再找一次
         _chrome = window.FindControl<Control>("RootChrome");
         window.Activated += OnActivated;
+        window.Deactivated += OnDeactivated;
         window.PropertyChanged += OnWindowPropertyChanged;
         window.Opacity = 1;
+        window.Width = DefaultWidth;
+        window.Height = DefaultHeight;
+        window.ShowInTaskbar = false;
     }
 
     public bool IsOpen => _open && _window?.IsVisible == true;
+
+    /// <summary>启动时软藏起，不闪主屏中心。</summary>
+    public void PrepareHidden()
+    {
+        if (_window is null)
+            return;
+
+        EnsureChrome();
+        _ignoreDeactivate = true;
+        try
+        {
+            _window.ShowInTaskbar = false;
+            _window.IsHitTestVisible = false;
+            _window.Topmost = false;
+            if (!_window.IsVisible)
+                _window.Show();
+            SoftHideOffscreen();
+            Reset(Chrome);
+            _open = false;
+            _dormant = true;
+        }
+        finally
+        {
+            _ignoreDeactivate = false;
+        }
+    }
 
     public async Task ShowAsync()
     {
@@ -55,14 +96,16 @@ public sealed class PopupHost
         }
 
         _busy = true;
+        _ignoreDeactivate = true;
         try
         {
             var target = Chrome;
-            // 窗口本体禁止透明
             _window.Opacity = 1;
             _window.IsHitTestVisible = true;
             _window.Topmost = true;
-            _window.ShowInTaskbar = true;
+            _window.ShowInTaskbar = false;
+            _window.Width = DefaultWidth;
+            _window.Height = DefaultHeight;
 
             PrepareEnter(target);
 
@@ -72,13 +115,16 @@ public sealed class PopupHost
             if (_window.WindowState != WindowState.Normal)
                 _window.WindowState = WindowState.Normal;
 
-            if (_restoredPosition is { } pos)
-                _window.Position = pos;
+            _dormant = false;
+
+            // 对齐 Maccy popupPosition=cursor：每次唤醒重新贴光标
+            _window.Position = ResolveCursorOrigin(
+                (int)Math.Round(_window.Width * (_window.RenderScaling <= 0 ? 1 : _window.RenderScaling)),
+                (int)Math.Round(_window.Height * (_window.RenderScaling <= 0 ? 1 : _window.RenderScaling)));
 
             _window.Activate();
 
             await AnimateAsync(target, 0, 1, 0.96, 1).ConfigureAwait(true);
-            // 兜底：动画中断时也不能停在 0
             EnsureShownVisuals(target);
             _open = true;
         }
@@ -91,6 +137,8 @@ public sealed class PopupHost
         finally
         {
             _busy = false;
+            // 稍后再听失焦，避免 Activate 过程误关
+            Dispatcher.UIThread.Post(() => _ignoreDeactivate = false, DispatcherPriority.Background);
         }
     }
 
@@ -101,25 +149,24 @@ public sealed class PopupHost
 
         EnsureChrome();
         _busy = true;
+        _ignoreDeactivate = true;
         try
         {
             var target = Chrome;
-            _restoredPosition = _window.Position;
-
             await AnimateAsync(target, 1, 0, 1, 0.96).ConfigureAwait(true);
 
             _window.IsHitTestVisible = false;
             _window.Topmost = false;
             _window.Opacity = 1;
-            // 软隐藏：移出屏幕，保留托管状态
-            _window.Position = new PixelPoint(-32000, -32000);
-            // 藏好后把 chrome 重置为不透明，避免下次外部激活时先露出空壳
+            SoftHideOffscreen();
             Reset(target);
             _open = false;
+            _dormant = true;
         }
         finally
         {
             _busy = false;
+            _ignoreDeactivate = false;
         }
     }
 
@@ -134,6 +181,40 @@ public sealed class PopupHost
         _chrome ??= _window.FindControl<Control>("RootChrome");
     }
 
+    private void SoftHideOffscreen()
+    {
+        if (_window is null)
+            return;
+        _window.Position = new PixelPoint(-32000, -32000);
+    }
+
+    /// <summary>
+    /// Maccy：窗口顶边贴光标、主体在光标下方，并钳进工作区。
+    /// Windows/Avalonia 坐标原点左上、Y 向下，直接以光标为左上角再钳制即可。
+    /// </summary>
+    private PixelPoint ResolveCursorOrigin(int pixelWidth, int pixelHeight)
+    {
+        var cursor = _pointer.GetCursorPosition();
+        var work = ResolveWorkingArea(cursor);
+
+        var x = cursor.X;
+        var y = cursor.Y;
+        x = Math.Clamp(x, work.X, Math.Max(work.X, work.Right - pixelWidth));
+        y = Math.Clamp(y, work.Y, Math.Max(work.Y, work.Bottom - pixelHeight));
+        return new PixelPoint(x, y);
+    }
+
+    private ScreenRect ResolveWorkingArea(ScreenPoint cursor)
+    {
+        if (_window?.Screens.ScreenFromPoint(new PixelPoint(cursor.X, cursor.Y)) is { } screen)
+        {
+            var b = screen.WorkingArea;
+            return new ScreenRect(b.X, b.Y, b.Width, b.Height);
+        }
+
+        return _pointer.GetWorkingAreaContaining(cursor);
+    }
+
     private static void EnsureShownVisuals(Control target)
     {
         target.Opacity = 1;
@@ -141,6 +222,20 @@ public sealed class PopupHost
     }
 
     private void OnActivated(object? sender, EventArgs e) => TryRepair();
+
+    private void OnDeactivated(object? sender, EventArgs e)
+    {
+        // 对齐 Maccy FloatingPanel.resignKey → close
+        if (_ignoreDeactivate || !_open || _busy)
+            return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_ignoreDeactivate || !_open || _busy)
+                return;
+            _ = HideAsync();
+        });
+    }
 
     private void OnWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
@@ -150,7 +245,7 @@ public sealed class PopupHost
 
     private void TryRepair()
     {
-        if (_window is null || _busy || _open)
+        if (_window is null || _busy || _open || _dormant)
             return;
 
         if (_window.IsVisible && _window.WindowState != WindowState.Minimized)

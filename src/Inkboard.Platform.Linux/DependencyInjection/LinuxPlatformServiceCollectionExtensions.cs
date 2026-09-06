@@ -2,9 +2,11 @@ namespace Inkboard.Platform.Linux.DependencyInjection;
 
 using Inkboard.Infrastructure.Abstractions.Clipboard;
 using Inkboard.Infrastructure.Abstractions.Hotkey;
+using Inkboard.Infrastructure.Abstractions.Screen;
 using Inkboard.Infrastructure.Abstractions.Tray;
 using Inkboard.Platform.Linux.Clipboard;
 using Inkboard.Platform.Linux.Hotkey;
+using Inkboard.Platform.Linux.Screen;
 using Inkboard.Platform.Linux.Tray;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -20,6 +22,7 @@ public static class LinuxPlatformServiceCollectionExtensions
         services.AddSingleton<IPasteSimulator, LinuxPasteSimulator>();
         services.AddSingleton<IHotkeyService, LinuxHotkeyService>();
         services.AddSingleton<ITrayService, LinuxTrayService>();
+        services.AddSingleton<IPointerScreen, LinuxPointerScreen>();
         return services;
     }
 }

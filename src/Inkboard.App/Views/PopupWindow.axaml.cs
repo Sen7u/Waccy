@@ -8,6 +8,7 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Inkboard.App.Services;
 using Inkboard.App.ViewModels;
 
@@ -77,23 +78,70 @@ public partial class PopupWindow : Window
             return;
         }
 
+        // 搜索框聚焦时仍可用方向键浏览列表（对齐 Maccy 键盘导航）
+        if (e.Key is Key.Up or Key.Down && vm.Items.Count > 0)
+        {
+            MoveSelection(vm, e.Key == Key.Down ? 1 : -1);
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.Enter)
         {
-            await vm.ActivateCommand.ExecuteAsync(vm.SelectedItem);
-            if (_host is not null)
-                await _host.HideAsync();
+            await ConfirmSelectionAsync(vm);
             e.Handled = true;
         }
     }
 
-    private async void OnItemDoubleTapped(object? sender, TappedEventArgs e)
+    /// <summary>
+    /// 单击条目即复制并关闭（对齐 Maccy History.select 空修饰键行为）。
+    /// 置顶/删除按钮上的点击不触发。
+    /// </summary>
+    private async void OnItemTapped(object? sender, TappedEventArgs e)
     {
         if (DataContext is not PopupViewModel vm)
             return;
 
+        if (e.Source is Control source && source.FindAncestorOfType<Button>() is not null)
+            return;
+
+        HistoryItemRow? row = null;
+        if (e.Source is Control c)
+        {
+            var container = c.FindAncestorOfType<ListBoxItem>();
+            if (container?.DataContext is HistoryItemRow fromContainer)
+                row = fromContainer;
+        }
+
+        row ??= vm.SelectedItem;
+        if (row is null)
+            return;
+
+        vm.SelectedItem = row;
+        await ConfirmSelectionAsync(vm);
+    }
+
+    private async Task ConfirmSelectionAsync(PopupViewModel vm)
+    {
         await vm.ActivateCommand.ExecuteAsync(vm.SelectedItem);
         if (_host is not null)
             await _host.HideAsync();
+    }
+
+    private static void MoveSelection(PopupViewModel vm, int delta)
+    {
+        if (vm.Items.Count == 0)
+            return;
+
+        var index = vm.SelectedItem is null
+            ? (delta > 0 ? 0 : vm.Items.Count - 1)
+            : vm.Items.IndexOf(vm.SelectedItem);
+
+        if (index < 0)
+            index = 0;
+
+        index = Math.Clamp(index + delta, 0, vm.Items.Count - 1);
+        vm.SelectedItem = vm.Items[index];
     }
 
     /// <summary>

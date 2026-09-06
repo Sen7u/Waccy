@@ -65,28 +65,40 @@ public sealed class WindowsHotkeyService : IHotkeyService
 
     private void MessageLoop()
     {
-        _hwnd = CreateMessageWindow();
-        ParseGesture(_gesture, out var mods, out var key);
-        if (!RegisterHotKey(_hwnd, HotkeyId, mods, key))
+        try
         {
-            // 注册失败时仍保活线程，避免反复崩溃；上层可依赖窗口内兜底快捷键
-            mods = ModControl | ModShift;
-            key = 0x56; // V
-            RegisterHotKey(_hwnd, HotkeyId, mods, key);
-        }
+            _hwnd = CreateMessageWindow();
+            ParseGesture(_gesture, out var mods, out var key);
+            if (!RegisterHotKey(_hwnd, HotkeyId, mods, key))
+            {
+                // 注册失败时仍保活线程；上层可依赖窗口内兜底快捷键
+                mods = ModControl | ModShift;
+                key = 0x56; // V
+                RegisterHotKey(_hwnd, HotkeyId, mods, key);
+            }
 
-        while (_running && GetMessage(out var msg, IntPtr.Zero, 0, 0))
+            while (_running && GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
+            {
+                if (msg.Message == WmHotkey && msg.WParam == (IntPtr)HotkeyId)
+                    HotkeyPressed?.Invoke(this, EventArgs.Empty);
+
+                TranslateMessage(ref msg);
+                DispatchMessage(ref msg);
+            }
+        }
+        catch
         {
-            if (msg.Message == WmHotkey && msg.WParam == (IntPtr)HotkeyId)
-                HotkeyPressed?.Invoke(this, EventArgs.Empty);
-
-            TranslateMessage(ref msg);
-            DispatchMessage(ref msg);
+            // 热键线程异常不得拖垮主进程
         }
-
-        UnregisterHotKey(_hwnd, HotkeyId);
-        DestroyWindow(_hwnd);
-        _hwnd = IntPtr.Zero;
+        finally
+        {
+            if (_hwnd != IntPtr.Zero)
+            {
+                UnregisterHotKey(_hwnd, HotkeyId);
+                DestroyWindow(_hwnd);
+                _hwnd = IntPtr.Zero;
+            }
+        }
     }
 
     private static void ParseGesture(string gesture, out uint mods, out uint key)
@@ -122,16 +134,21 @@ public sealed class WindowsHotkeyService : IHotkeyService
 
     private static IntPtr CreateMessageWindow()
     {
+        // WndProc 委托必须钉住：GetFunctionPointerForDelegate 的临时委托被 GC 后，
+        // Windows 回调会直接 AccessViolation，表现为启动后不久闪退。
         var wc = new WndClassEx
         {
             CbSize = Marshal.SizeOf<WndClassEx>(),
-            LpfnWndProc = Marshal.GetFunctionPointerForDelegate(DefWindowProc),
+            LpfnWndProc = Marshal.GetFunctionPointerForDelegate(s_wndProc),
             HInstance = GetModuleHandle(null),
             LpszClassName = "InkboardHotkeyHiddenWindow",
         };
         RegisterClassEx(ref wc);
-        return CreateWindowEx(0, wc.LpszClassName, string.Empty, 0,
+        var hwnd = CreateWindowEx(0, wc.LpszClassName, string.Empty, 0,
             0, 0, 0, 0, HWND_MESSAGE, IntPtr.Zero, wc.HInstance, IntPtr.Zero);
+        if (hwnd == IntPtr.Zero)
+            throw new InvalidOperationException("创建热键消息窗失败。");
+        return hwnd;
     }
 
     private const uint ModAlt = 0x0001;
@@ -142,14 +159,19 @@ public sealed class WindowsHotkeyService : IHotkeyService
 
     private delegate IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
+    // 静态保活，防止 GC 回收后原生回调踩空
+    private static readonly WndProc s_wndProc = static (hWnd, msg, wParam, lParam) =>
+        DefWindowProc(hWnd, msg, wParam, lParam);
+
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
+    // 返回值：>0 有消息，0 收到 WM_QUIT，<0 错误；勿用 bool，否则 -1 会被当成 true
     [DllImport("user32.dll")]
-    private static extern bool GetMessage(out Msg lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
+    private static extern int GetMessage(out Msg lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
 
     [DllImport("user32.dll")]
     private static extern bool TranslateMessage(ref Msg lpMsg);

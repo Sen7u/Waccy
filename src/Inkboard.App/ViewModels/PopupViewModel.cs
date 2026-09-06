@@ -87,7 +87,8 @@ public partial class PopupViewModel : ViewModelBase
             return;
 
         await _writer.WriteAsync(row.ToEntity()).ConfigureAwait(true);
-        StatusText = "已写入剪贴板";
+        StatusText = "已复制";
+        SearchText = string.Empty;
     }
 
     [RelayCommand]

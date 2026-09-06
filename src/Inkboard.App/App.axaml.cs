@@ -43,9 +43,9 @@ public partial class App : Avalonia.Application
             };
             _popup.BindHost(_popupHost);
 
-            // 作为主窗口挂接生命周期；平时可隐藏，热键 / 托盘再唤起
+            // 作为主窗口挂接生命周期；启动时软隐藏，热键 / 托盘再唤起（对齐 Maccy）
             desktop.MainWindow = _popup;
-            await _popupHost.ShowAsync();
+            _popupHost.PrepareHidden();
 
             InstallTray(desktop);
 
@@ -53,10 +53,17 @@ public partial class App : Avalonia.Application
             _hotkeys.HotkeyPressed += (_, _) =>
                 Dispatcher.UIThread.Post(() => _ = _popupHost.ToggleAsync());
 
-            var settings = await Services.GetRequiredService<ISettingsStore>()
-                .LoadAsync()
-                .ConfigureAwait(true);
-            await _hotkeys.RegisterAsync(settings.PopupHotkey).ConfigureAwait(true);
+            try
+            {
+                var settings = await Services.GetRequiredService<ISettingsStore>()
+                    .LoadAsync()
+                    .ConfigureAwait(true);
+                await _hotkeys.RegisterAsync(settings.PopupHotkey).ConfigureAwait(true);
+            }
+            catch
+            {
+                // 热键注册失败不阻断启动；窗口内 Ctrl+Shift+V / 托盘仍可用
+            }
 
             desktop.ShutdownRequested += async (_, _) =>
             {

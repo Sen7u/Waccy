@@ -4,13 +4,15 @@
         x:Class="Inkboard.App.Views.PopupWindow"
         x:DataType="vm:PopupViewModel"
         Title="Inkboard"
-        Width="440" Height="520"
+        Width="450" Height="380"
         CanResize="False"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="Manual"
         Background="Transparent"
         TransparencyLevelHint="Transparent"
+        WindowDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
         Topmost="True"
-        ShowInTaskbar="True">
+        ShowInTaskbar="False">
 
   <Border Name="RootChrome"
           CornerRadius="{DynamicResource Radius.Window}"
@@ -22,7 +24,8 @@
 
     <DockPanel>
       <StackPanel DockPanel.Dock="Top" Spacing="{DynamicResource Gap.Md}" Margin="0,0,0,12">
-        <DockPanel>
+        <!-- 品牌行兼作拖拽区：无系统标题栏时仍可移动窗口 -->
+        <DockPanel WindowDecorationProperties.ElementRole="TitleBar">
           <TextBlock Text="Inkboard"
                      FontSize="{DynamicResource Font.Title}"
                      FontWeight="SemiBold"
@@ -86,7 +89,7 @@
                ItemsSource="{Binding Items}"
                SelectedItem="{Binding SelectedItem}"
                IsVisible="{Binding HasItems}"
-               DoubleTapped="OnItemDoubleTapped">
+               Tapped="OnItemTapped">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="vm:HistoryItemRow">
             <Grid ColumnDefinitions="Auto,*,Auto" MinHeight="40">
